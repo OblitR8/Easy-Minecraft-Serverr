@@ -1,4 +1,4 @@
-﻿using System.IO;
+using System.IO;
 using System.Text.Json;
 
 namespace Easy_Minecraft_Serverr
@@ -26,22 +26,37 @@ namespace Easy_Minecraft_Serverr
 
         public static void Save(IEnumerable<ServerProfile> servers)
         {
-            Directory.CreateDirectory(StorageFolder);
-
-            var data = servers.Select(s => new ServerProfileData
+            try
             {
-                Name = s.Name,
-                InstallPath = s.InstallPath,
-                Software = s.Software,
-                MinecraftVersion = s.MinecraftVersion,
-                RamMinMb = s.RamMinMb,
-                RamMaxMb = s.RamMaxMb,
-                Port = s.Port,
-                JarFileName = s.JarFileName
-            }).ToList();
+                Directory.CreateDirectory(StorageFolder);
 
-            var json = JsonSerializer.Serialize(data, new JsonSerializerOptions { WriteIndented = true });
-            File.WriteAllText(StorageFilePath, json);
+                var data = servers.Select(s => new ServerProfileData
+                {
+                    Name = s.Name,
+                    InstallPath = s.InstallPath,
+                    Software = s.Software,
+                    MinecraftVersion = s.MinecraftVersion,
+                    RamMinMb = s.RamMinMb,
+                    RamMaxMb = s.RamMaxMb,
+                    Port = s.Port,
+                    JarFileName = s.JarFileName
+                }).ToList();
+
+                var json = JsonSerializer.Serialize(data, new JsonSerializerOptions { WriteIndented = true });
+                
+                // Write to temporary file first, then rename (atomic operation)
+                string tempPath = StorageFilePath + ".tmp";
+                File.WriteAllText(tempPath, json);
+                if (File.Exists(StorageFilePath)) File.Delete(StorageFilePath);
+                File.Move(tempPath, StorageFilePath);
+
+                LoggingService.LogInfo($"Saved {data.Count} server profiles");
+            }
+            catch (Exception ex)
+            {
+                LoggingService.LogError("Failed to save server profiles", ex);
+                throw;
+            }
         }
 
         public static List<ServerProfile> Load()
@@ -54,7 +69,7 @@ namespace Easy_Minecraft_Serverr
                 var json = File.ReadAllText(StorageFilePath);
                 var data = JsonSerializer.Deserialize<List<ServerProfileData>>(json) ?? new();
 
-                return data.Select(d => new ServerProfile
+                var profiles = data.Select(d => new ServerProfile
                 {
                     Name = d.Name,
                     InstallPath = d.InstallPath,
@@ -65,9 +80,13 @@ namespace Easy_Minecraft_Serverr
                     Port = d.Port,
                     JarFileName = string.IsNullOrEmpty(d.JarFileName) ? "server.jar" : d.JarFileName
                 }).ToList();
+
+                LoggingService.LogInfo($"Loaded {profiles.Count} server profiles");
+                return profiles;
             }
-            catch
+            catch (Exception ex)
             {
+                LoggingService.LogError("Failed to load server profiles", ex);
                 // Corrupted file — don't crash the app, just start fresh
                 return new List<ServerProfile>();
             }

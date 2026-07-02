@@ -1,4 +1,4 @@
-﻿using System.ComponentModel;
+using System.ComponentModel;
 using System.Text;
 
 namespace Easy_Minecraft_Serverr
@@ -67,6 +67,8 @@ namespace Easy_Minecraft_Serverr
         public string JarFileName { get; set; } = "server.jar";
 
         public ServerRuntime Runtime { get; }
+        public ServerPerformanceMonitor PerformanceMonitor { get; }
+        public OperationState OperationState { get; }
         public StringBuilder ConsoleLog { get; } = new StringBuilder();
 
         public event Action<string>? ConsoleLineAdded;
@@ -74,6 +76,9 @@ namespace Easy_Minecraft_Serverr
         public ServerProfile()
         {
             Runtime = new ServerRuntime();
+            PerformanceMonitor = new ServerPerformanceMonitor();
+            OperationState = new OperationState();
+
             Runtime.OutputReceived += line =>
             {
                 ConsoleLog.AppendLine(line);
@@ -82,6 +87,9 @@ namespace Easy_Minecraft_Serverr
             Runtime.Exited += () =>
             {
                 Status = ServerStatus.Stopped;
+                PerformanceMonitor.StopMonitoring();
+                OperationState.CompleteOperation();
+                LoggingService.LogServerEvent(Name, "Server stopped");
             };
         }
 
