@@ -87,7 +87,7 @@
             </Style.Triggers>
         </Style>
 
-        <!-- ===== TextBox / ComboBox ===== -->
+        <!-- ===== TextBox ===== -->
         <Style TargetType="TextBox">
             <Setter Property="Background" Value="{StaticResource BgCard}"/>
             <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
@@ -109,11 +109,93 @@
             </Setter>
         </Style>
 
+        <!-- ===== ComboBoxItem (the rows inside the dropdown) ===== -->
+        <Style TargetType="ComboBoxItem">
+            <Setter Property="Background" Value="{StaticResource BgCard}"/>
+            <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+            <Setter Property="Padding" Value="10,7"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBoxItem">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsHighlighted" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource BgCardHover}"/>
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource Accent}"/>
+                                <Setter Property="Foreground" Value="#0F1115"/>
+                                <Setter Property="FontWeight" Value="SemiBold"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- ===== ComboBox (fully templated so the dropdown popup is dark too) ===== -->
         <Style TargetType="ComboBox">
             <Setter Property="Background" Value="{StaticResource BgCard}"/>
             <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
             <Setter Property="BorderBrush" Value="{StaticResource BorderSubtle}"/>
+            <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Padding" Value="8,6"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBox">
+                        <Grid>
+                            <Border x:Name="MainBorder"
+                                    Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    CornerRadius="6"/>
+
+                            <ToggleButton x:Name="ToggleBtn"
+                                          Background="Transparent"
+                                          BorderThickness="0"
+                                          IsChecked="{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}"
+                                          Focusable="False" ClickMode="Press">
+                                <ToggleButton.Template>
+                                    <ControlTemplate TargetType="ToggleButton">
+                                        <Rectangle Fill="Transparent"/>
+                                    </ControlTemplate>
+                                </ToggleButton.Template>
+                            </ToggleButton>
+
+                            <Grid IsHitTestVisible="False" Margin="{TemplateBinding Padding}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="18"/>
+                                </Grid.ColumnDefinitions>
+                                <ContentPresenter Grid.Column="0"
+                                                   Content="{TemplateBinding SelectionBoxItem}"
+                                                   ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                                   VerticalAlignment="Center"/>
+                                <Path Grid.Column="1" Data="M0,0 L4,4 L8,0 Z"
+                                      Fill="{StaticResource TextSecondary}"
+                                      HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Grid>
+
+                            <Popup x:Name="Popup" IsOpen="{TemplateBinding IsDropDownOpen}"
+                                   Placement="Bottom" AllowsTransparency="True" Focusable="False"
+                                   PopupAnimation="Slide" MinWidth="{TemplateBinding ActualWidth}">
+                                <Border Background="{StaticResource BgCard}"
+                                        BorderBrush="{StaticResource BorderSubtle}"
+                                        BorderThickness="1" CornerRadius="6" Margin="0,4,0,0">
+                                    <Border.Effect>
+                                        <DropShadowEffect BlurRadius="12" ShadowDepth="2" Opacity="0.4"/>
+                                    </Border.Effect>
+                                    <ScrollViewer MaxHeight="260" SnapsToDevicePixels="True">
+                                        <ItemsPresenter/>
+                                    </ScrollViewer>
+                                </Border>
+                            </Popup>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
 
         <!-- ===== Slider ===== -->
