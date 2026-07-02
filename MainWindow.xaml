@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:Easy_Minecraft_Serverr"
         mc:Ignorable="d"
-        Title="Easy Minecraft Serverr" Height="640" Width="1000"
+        Title="Easy Minecraft Serverr" Height="640" Width="1020"
         Background="#0F1115"
         FontFamily="Segoe UI">
 
