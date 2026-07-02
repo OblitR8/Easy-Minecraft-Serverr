@@ -1,4 +1,5 @@
-﻿<Window x:Class="Easy_Minecraft_Serverr.MainWindow"
+<?xml version="1.0" encoding="utf-8"?>
+<Window x:Class="Easy_Minecraft_Serverr.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -425,6 +426,52 @@
                             </StackPanel>
                             <TextBlock x:Name="PortStatusText" Foreground="{StaticResource TextSecondary}" FontSize="11" Margin="0,6,0,0"/>
                         </StackPanel>
+                    </TabItem>
+
+                    <TabItem Header="PERFORMANCE" Margin="2,1,2,-1">
+                        <Grid Margin="0,20,0,0">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+
+                            <!-- CPU Usage -->
+                            <TextBlock Grid.Row="0" Text="CPU Usage" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                            <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,16">
+                                <ProgressBar x:Name="CpuProgressBar" Width="200" Height="24" Background="{StaticResource BgCard}" 
+                                             Foreground="#34D399" Value="{Binding SelectedServer.PerformanceMonitor.CpuUsage, Mode=OneWay}"
+                                             Maximum="100" CornerRadius="6"/>
+                                <TextBlock Text="{Binding SelectedServer.PerformanceMonitor.CpuUsage, StringFormat={}{0:0.0}%}" 
+                                          FontFamily="Consolas" Margin="12,0,0,0" VerticalAlignment="Center"/>
+                            </StackPanel>
+
+                            <!-- Memory Usage -->
+                            <TextBlock Grid.Row="2" Text="Memory Usage" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                            <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,0,0,16">
+                                <TextBlock FontFamily="Consolas" VerticalAlignment="Center">
+                                    <Run Text="{Binding SelectedServer.PerformanceMonitor.MemoryUsageMb, Mode=OneWay}"/>
+                                    <Run Text=" MB"/>
+                                </TextBlock>
+                                <TextBlock Text=" / " Margin="6,0" VerticalAlignment="Center"/>
+                                <TextBlock Text="{Binding SelectedServer.RamMaxMb, StringFormat={}{0} MB}" 
+                                          FontFamily="Consolas" VerticalAlignment="Center"/>
+                            </StackPanel>
+
+                            <!-- Uptime -->
+                            <Grid Grid.Row="4" VerticalAlignment="Top">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="120"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Server Uptime:" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                <TextBlock Grid.Column="1" Text="{Binding SelectedServer.PerformanceMonitor.Uptime, Mode=OneWay}" 
+                                          FontFamily="Consolas" FontSize="16" Foreground="{StaticResource Accent}" 
+                                          VerticalAlignment="Center" Margin="12,0,0,0"/>
+                            </Grid>
+                        </Grid>
                     </TabItem>
 
                     <TabItem x:Name="PluginsModsTab" Header="PLUGINS/MODS" Margin="2,0,-1,0">
