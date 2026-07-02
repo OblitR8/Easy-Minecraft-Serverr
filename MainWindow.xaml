@@ -421,7 +421,7 @@
                             <TextBlock Text="Port" FontWeight="SemiBold" Margin="0,20,0,6"/>
                             <StackPanel Orientation="Horizontal">
                                 <TextBox x:Name="PortBox" Width="100" FontFamily="Consolas"/>
-                                <Button x:Name="SavePortButton" Content="Save" Margin="8,0,0,0" Click="SavePortButton_Click"/>
+                                <Button x:Name="SavePortButton" Content="Save" Margin="8,0,0,0" Click="SavePortButton_Click" Width="38"/>
                             </StackPanel>
                             <TextBlock x:Name="PortStatusText" Foreground="{StaticResource TextSecondary}" FontSize="11" Margin="0,6,0,0"/>
                         </StackPanel>
