@@ -1,4 +1,4 @@
-﻿using System.Collections.ObjectModel;
+using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
@@ -47,6 +47,8 @@ namespace Easy_Minecraft_Serverr
 
             Title = $"Easy Minecraft Serverr v{UpdateCheckService.CurrentVersion}";
             _ = CheckForUpdatesOnStartupAsync();
+
+            LoggingService.LogInfo("Main window initialized");
         }
 
         private async Task CheckForUpdatesOnStartupAsync()
@@ -71,32 +73,61 @@ namespace Easy_Minecraft_Serverr
 
         private void MainWindow_Closing(object? sender, CancelEventArgs e)
         {
-            ServerStorageService.Save(Servers);
+            try
+            {
+                ServerStorageService.Save(Servers);
+            }
+            catch (Exception ex)
+            {
+                LoggingService.LogError("Failed to save servers on close", ex);
+            }
         }
 
         private void AddServerButton_Click(object sender, RoutedEventArgs e)
         {
-            var name = $"Server {Servers.Count + 1}";
-            var installPath = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
-                "EasyMinecraftServerr", name);
-
-            var newServer = new ServerProfile
+            try
             {
-                Name = name,
-                InstallPath = installPath
-            };
-            Servers.Add(newServer);
-            SelectedServer = newServer;
-            ServerStorageService.Save(Servers);
+                var name = $"Server {Servers.Count + 1}";
+                var installPath = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+                    "EasyMinecraftServerr", name);
+
+                var newServer = new ServerProfile
+                {
+                    Name = name,
+                    InstallPath = installPath
+                };
+                Servers.Add(newServer);
+                SelectedServer = newServer;
+                ServerStorageService.Save(Servers);
+                
+                LoggingService.LogInfo($"Created new server: {name}");
+            }
+            catch (Exception ex)
+            {
+                LoggingService.LogError("Failed to add server", ex);
+                MessageBox.Show($"Error adding server: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         private void RemoveServerButton_Click(object sender, RoutedEventArgs e)
         {
             if (SelectedServer == null) return;
-            Servers.Remove(SelectedServer);
-            SelectedServer = Servers.Count > 0 ? Servers[0] : null;
-            ServerStorageService.Save(Servers);
+            
+            try
+            {
+                var serverName = SelectedServer.Name;
+                Servers.Remove(SelectedServer);
+                SelectedServer = Servers.Count > 0 ? Servers[0] : null;
+                ServerStorageService.Save(Servers);
+                
+                LoggingService.LogInfo($"Removed server: {serverName}");
+            }
+            catch (Exception ex)
+            {
+                LoggingService.LogError("Failed to remove server", ex);
+                MessageBox.Show($"Error removing server: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         private void LoadProfileIntoUi()
@@ -113,7 +144,7 @@ namespace Easy_Minecraft_Serverr
 
             _isLoadingProfile = true;
 
-            SoftwareCombo.SelectedItem = SelectedServer.Software; // triggers SoftwareCombo_SelectionChanged
+            SoftwareCombo.SelectedItem = SelectedServer.Software;
             RamMinSlider.Value = SelectedServer.RamMinMb;
             RamMaxSlider.Value = SelectedServer.RamMaxMb;
             PortBox.Text = SelectedServer.Port.ToString();
@@ -175,6 +206,7 @@ namespace Easy_Minecraft_Serverr
             }
             catch (Exception ex)
             {
+                LoggingService.LogError($"Failed to load versions for {software}", ex);
                 VersionStatusText.Text = $"Failed to load versions: {ex.Message}";
             }
         }
@@ -207,21 +239,34 @@ namespace Easy_Minecraft_Serverr
         {
             if (SelectedServer == null) return;
 
-            if (!int.TryParse(PortBox.Text.Trim(), out int port) || port < 1 || port > 65535)
+            try
             {
-                PortStatusText.Foreground = System.Windows.Media.Brushes.OrangeRed;
-                PortStatusText.Text = "Invalid port. Enter a number between 1 and 65535.";
-                return;
+                if (!int.TryParse(PortBox.Text.Trim(), out int port) || port < 1 || port > 65535)
+                {
+                    PortStatusText.Foreground = System.Windows.Media.Brushes.OrangeRed;
+                    PortStatusText.Text = "Invalid port. Enter a number between 1 and 65535.";
+                    LoggingService.LogWarning($"Invalid port entered: {PortBox.Text}");
+                    return;
+                }
+
+                SelectedServer.Port = port;
+                ServerStorageService.Save(Servers);
+                ServerPropertiesService.SetProperty(SelectedServer, "server-port", port.ToString());
+
+                PortStatusText.Foreground = System.Windows.Media.Brushes.LightGreen;
+                PortStatusText.Text = SelectedServer.Runtime.IsRunning
+                    ? $"Saved. Restart the server for port {port} to take effect."
+                    : $"Saved. Port {port} will be used next time this server starts.";
+
+                LoggingService.LogServerEvent(SelectedServer.Name, $"Port changed to {port}");
             }
-
-            SelectedServer.Port = port;
-            ServerStorageService.Save(Servers);
-            ServerPropertiesService.SetProperty(SelectedServer, "server-port", port.ToString());
-
-            PortStatusText.Foreground = System.Windows.Media.Brushes.LightGreen;
-            PortStatusText.Text = SelectedServer.Runtime.IsRunning
-                ? $"Saved. Restart the server for port {port} to take effect."
-                : $"Saved. Port {port} will be used next time this server starts.";
+            catch (Exception ex)
+            {
+                LoggingService.LogError($"Failed to save port for server {SelectedServer.Name}", ex);
+                PortStatusText.Foreground = System.Windows.Media.Brushes.OrangeRed;
+                PortStatusText.Text = $"Error: {ex.Message}";
+                MessageBox.Show($"Error saving port: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         private async void StartStopButton_Click(object sender, RoutedEventArgs e)
@@ -229,22 +274,44 @@ namespace Easy_Minecraft_Serverr
             if (SelectedServer == null) return;
             var server = SelectedServer;
 
-            if (server.Runtime.IsRunning)
+            try
             {
-                StartStopButton.IsEnabled = false;
-                server.Status = ServerStatus.Stopping;
-                await server.Runtime.StopAsync();
+                if (server.Runtime.IsRunning)
+                {
+                    StartStopButton.IsEnabled = false;
+                    server.OperationState.StartOperation(OperationType.Stopping, "Stopping server...");
+                    server.Status = ServerStatus.Stopping;
+                    await server.Runtime.StopAsync();
+                    server.Status = ServerStatus.Stopped;
+                    StartStopButton.Content = "Start";
+                    LoggingService.LogServerEvent(server.Name, "Server stopped by user");
+                }
+                else
+                {
+                    StartStopButton.IsEnabled = false;
+                    server.OperationState.StartOperation(OperationType.Starting, "Starting server...");
+                    server.Status = ServerStatus.Starting;
+                    await server.Runtime.StartAsync(server);
+                    server.Status = server.Runtime.IsRunning ? ServerStatus.Running : ServerStatus.Stopped;
+                    StartStopButton.Content = server.Runtime.IsRunning ? "Stop" : "Start";
+                    
+                    if (server.Runtime.IsRunning)
+                    {
+                        server.PerformanceMonitor.StartMonitoring(server.Runtime.GetProcess(), server);
+                        LoggingService.LogServerEvent(server.Name, "Server started successfully");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                LoggingService.LogError($"Failed to toggle server {server.Name}", ex);
+                MessageBox.Show($"Error: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
                 server.Status = ServerStatus.Stopped;
                 StartStopButton.Content = "Start";
-                StartStopButton.IsEnabled = true;
             }
-            else
+            finally
             {
-                StartStopButton.IsEnabled = false;
-                server.Status = ServerStatus.Starting;
-                await server.Runtime.StartAsync(server);
-                server.Status = server.Runtime.IsRunning ? ServerStatus.Running : ServerStatus.Stopped;
-                StartStopButton.Content = server.Runtime.IsRunning ? "Stop" : "Start";
+                server.OperationState.CompleteOperation();
                 StartStopButton.IsEnabled = true;
             }
         }
@@ -266,8 +333,17 @@ namespace Easy_Minecraft_Serverr
             string command = CommandInput.Text.Trim();
             if (string.IsNullOrEmpty(command)) return;
 
-            await SelectedServer.Runtime.SendCommandAsync(command);
-            CommandInput.Clear();
+            try
+            {
+                await SelectedServer.Runtime.SendCommandAsync(command);
+                LoggingService.LogServerEvent(SelectedServer.Name, $"Command executed: {command}");
+                CommandInput.Clear();
+            }
+            catch (Exception ex)
+            {
+                LoggingService.LogError($"Failed to send command to server {SelectedServer.Name}", ex);
+                MessageBox.Show($"Error sending command: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         private void RefreshAddonTab()
@@ -299,31 +375,40 @@ namespace Easy_Minecraft_Serverr
         {
             if (SelectedServer == null || !ModManagerService.SupportsAddons(SelectedServer.Software)) return;
 
-            string label = ModManagerService.GetAddonLabel(SelectedServer.Software).TrimEnd('s');
-
-            var dialog = new OpenFileDialog
+            try
             {
-                Title = $"Select a {label} .jar file",
-                Filter = "Jar files (*.jar)|*.jar",
-                Multiselect = true
-            };
+                string label = ModManagerService.GetAddonLabel(SelectedServer.Software).TrimEnd('s');
 
-            if (dialog.ShowDialog() != true) return;
+                var dialog = new OpenFileDialog
+                {
+                    Title = $"Select a {label} .jar file",
+                    Filter = "Jar files (*.jar)|*.jar",
+                    Multiselect = true
+                };
 
-            var warning = MessageBox.Show(
-                $"You're about to install {dialog.FileNames.Length} file(s) into this server's {ModManagerService.GetAddonFolderName(SelectedServer.Software)} folder.\n\n" +
-                "Only install jars from sources you trust — plugins and mods run with full access to your server and can contain malicious code.\n\n" +
-                "A server restart is required for changes to take effect. Continue?",
-                "Confirm installation",
-                MessageBoxButton.YesNo,
-                MessageBoxImage.Warning);
+                if (dialog.ShowDialog() != true) return;
 
-            if (warning != MessageBoxResult.Yes) return;
+                var warning = MessageBox.Show(
+                    $"You're about to install {dialog.FileNames.Length} file(s) into this server's {ModManagerService.GetAddonFolderName(SelectedServer.Software)} folder.\n\n" +
+                    "Only install jars from sources you trust — plugins and mods run with full access to your server and can contain malicious code.\n\n" +
+                    "A server restart is required for changes to take effect. Continue?",
+                    "Confirm installation",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Warning);
 
-            foreach (var file in dialog.FileNames)
-                ModManagerService.AddAddon(SelectedServer, file);
+                if (warning != MessageBoxResult.Yes) return;
 
-            RefreshAddonTab();
+                foreach (var file in dialog.FileNames)
+                    ModManagerService.AddAddon(SelectedServer, file);
+
+                LoggingService.LogServerEvent(SelectedServer.Name, $"Added {dialog.FileNames.Length} addon(s)");
+                RefreshAddonTab();
+            }
+            catch (Exception ex)
+            {
+                LoggingService.LogError($"Failed to add addon to server {SelectedServer?.Name}", ex);
+                MessageBox.Show($"Error adding addon: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         private void RemoveAddonButton_Click(object sender, RoutedEventArgs e)
@@ -331,24 +416,43 @@ namespace Easy_Minecraft_Serverr
             if (SelectedServer == null) return;
             if (AddonListBox.SelectedItem is not string fileName) return;
 
-            var warning = MessageBox.Show(
-                $"Remove \"{fileName}\" from this server?\n\nThis deletes the file permanently and requires a server restart to take effect.",
-                "Confirm removal",
-                MessageBoxButton.YesNo,
-                MessageBoxImage.Warning);
+            try
+            {
+                var warning = MessageBox.Show(
+                    $"Remove \"{fileName}\" from this server?\n\nThis deletes the file permanently and requires a server restart to take effect.",
+                    "Confirm removal",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Warning);
 
-            if (warning != MessageBoxResult.Yes) return;
+                if (warning != MessageBoxResult.Yes) return;
 
-            ModManagerService.RemoveAddon(SelectedServer, fileName);
-            RefreshAddonTab();
+                ModManagerService.RemoveAddon(SelectedServer, fileName);
+                LoggingService.LogServerEvent(SelectedServer.Name, $"Removed addon: {fileName}");
+                RefreshAddonTab();
+            }
+            catch (Exception ex)
+            {
+                LoggingService.LogError($"Failed to remove addon from server {SelectedServer.Name}", ex);
+                MessageBox.Show($"Error removing addon: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         private void OpenAddonFolderButton_Click(object sender, RoutedEventArgs e)
         {
             if (SelectedServer == null) return;
-            var folder = ModManagerService.GetAddonFolderPath(SelectedServer);
-            Directory.CreateDirectory(folder);
-            Process.Start(new ProcessStartInfo { FileName = folder, UseShellExecute = true });
+            
+            try
+            {
+                var folder = ModManagerService.GetAddonFolderPath(SelectedServer);
+                Directory.CreateDirectory(folder);
+                Process.Start(new ProcessStartInfo { FileName = folder, UseShellExecute = true });
+                LoggingService.LogServerEvent(SelectedServer.Name, "Addon folder opened");
+            }
+            catch (Exception ex)
+            {
+                LoggingService.LogError($"Failed to open addon folder for server {SelectedServer.Name}", ex);
+                MessageBox.Show($"Error opening folder: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         public event PropertyChangedEventHandler? PropertyChanged;

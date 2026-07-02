@@ -1,4 +1,4 @@
-﻿using System.IO;
+using System.IO;
 
 namespace Easy_Minecraft_Serverr
 {
@@ -14,38 +14,72 @@ namespace Easy_Minecraft_Serverr
             var path = GetPropertiesPath(profile);
             if (!File.Exists(path)) return null;
 
-            foreach (var line in File.ReadAllLines(path))
+            try
             {
-                if (line.StartsWith(key + "=", StringComparison.OrdinalIgnoreCase))
-                    return line.Substring(key.Length + 1);
+                foreach (var line in File.ReadAllLines(path))
+                {
+                    if (line.StartsWith(key + "=", StringComparison.OrdinalIgnoreCase))
+                        return line.Substring(key.Length + 1);
+                }
+                return null;
             }
-            return null;
+            catch (Exception ex)
+            {
+                LoggingService.LogWarning($"Failed to read property '{key}' from {path}: {ex.Message}");
+                return null;
+            }
         }
 
         public static void SetProperty(ServerProfile profile, string key, string value)
         {
-            Directory.CreateDirectory(profile.InstallPath);
-            var path = GetPropertiesPath(profile);
-
-            List<string> lines = File.Exists(path)
-                ? File.ReadAllLines(path).ToList()
-                : new List<string>();
-
-            bool found = false;
-            for (int i = 0; i < lines.Count; i++)
+            try
             {
-                if (lines[i].StartsWith(key + "=", StringComparison.OrdinalIgnoreCase))
+                Directory.CreateDirectory(profile.InstallPath);
+                var path = GetPropertiesPath(profile);
+
+                // Validate the property
+                value = ServerPropertiesValidator.SanitizePropertyValue(value);
+
+                List<string> lines = File.Exists(path)
+                    ? File.ReadAllLines(path).ToList()
+                    : new List<string>();
+
+                bool found = false;
+                for (int i = 0; i < lines.Count; i++)
                 {
-                    lines[i] = $"{key}={value}";
-                    found = true;
-                    break;
+                    if (lines[i].StartsWith(key + "=", StringComparison.OrdinalIgnoreCase))
+                    {
+                        lines[i] = $"{key}={value}";
+                        found = true;
+                        break;
+                    }
                 }
+
+                if (!found)
+                    lines.Add($"{key}={value}");
+
+                // Write to temporary file first, then move (atomic operation)
+                string tempPath = path + ".tmp";
+                File.WriteAllLines(tempPath, lines);
+
+                // Validate before committing
+                var (isValid, errors) = ServerPropertiesValidator.ValidatePropertiesFile(tempPath);
+                if (!isValid)
+                {
+                    File.Delete(tempPath);
+                    throw new InvalidOperationException($"Validation failed: {string.Join(", ", errors)}");
+                }
+
+                if (File.Exists(path)) File.Delete(path);
+                File.Move(tempPath, path);
+
+                LoggingService.LogServerEvent(profile.Name, $"Set property {key}={value}");
             }
-
-            if (!found)
-                lines.Add($"{key}={value}");
-
-            File.WriteAllLines(path, lines);
+            catch (Exception ex)
+            {
+                LoggingService.LogError($"Failed to set property '{key}' on server '{profile.Name}'", ex);
+                throw;
+            }
         }
     }
 }
