@@ -21,7 +21,7 @@ A modern WPF desktop application that makes running and managing Minecraft serve
 - Configure server port with validation
 - Per-server profile storage
 
-🔌 **Plugin & Mod Support**
+🔧 **Plugin & Mod Support**
 - Install plugins on Paper servers
 - Install mods on Fabric servers
 - Manage addon files with a simple interface
@@ -75,14 +75,6 @@ A modern WPF desktop application that makes running and managing Minecraft serve
 - Remove unwanted addons
 - Open the addon folder to manage files manually
 - Server restart required for changes
-
-### Performance Monitoring
-
-The Performance tab shows:
-- CPU usage percentage
-- Memory consumption (used / allocated)
-- Server uptime
-- Player count (when available)
 
 ## Troubleshooting
 
